@@ -1,0 +1,24 @@
+{% if error %}
+<div style="background:#fef2f2; border:1px solid #fecaca; border-radius:6px; padding:0.75rem 1rem; color:#dc2626; font-size:0.875rem; margin-top:0;">
+    {{ error }}
+</div>
+{% else %}
+<div class="card" style="margin-top:0;">
+    <h2>集計完了 — {{ month }}</h2>
+    <div class="status-bar">
+        <span><span class="label">今回の処理行数: </span>{{ rows }}</span>
+        <span><span class="label">集計済み月数: </span>{{ months | length }} ヶ月</span>
+        <span><span class="label">合計行数: </span>{{ total_rows }}</span>
+    </div>
+    {% if months %}
+    <div class="months-list">
+        {% for m in months %}
+        <span class="month-tag">{{ m }}</span>
+        {% endfor %}
+    </div>
+    {% endif %}
+    <div class="btn-row">
+        <a href="download" class="btn btn-download">Excel ダウンロード</a>
+    </div>
+</div>
+{% endif %}
