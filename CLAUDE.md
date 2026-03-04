@@ -5,24 +5,30 @@ Prohibited: greetings, prefaces, apologies, emojis/kaomoji.
 ---
 
 ## Project Overview
-月次受講人数集計CLI。lists フォルダ内の複数 Excel ファイル（生徒受講情報）を自動処理し、
+月次受講人数集計。lists フォルダ内の複数 Excel ファイル（生徒受講情報）を自動処理し、
 講座別・月別の受講人数を集計して Pivot 形式 Excel で出力する。
+CLI/Skill 版（一括処理）と Web UI 版（ポータル統合・単月アップロード）の2モードで運用。
 
-**Status**: ✅ Production Ready (CLI/Skill版, 2025年度 4月～2月 稼働確認済み)
+**Status**: ✅ Production Ready (CLI/Skill版 + Web UI版, 2025年度 4月～2月 稼働確認済み)
 
 ## Tech Stack
-- CLI Framework: Python 3.14+
-- Package manager: uv
+- Python 3.14+ / uv
 - Excel処理: pandas + openpyxl
+- Web UI: FastAPI + Jinja2（ポータル統合用）
 - スキル化: Claude Code Skill
 
 ## Project Structure
 ```
 Course-Stats-Analyzer/
 ├── scripts/
-│   └── aggregate.py       # CLI メイン実行スクリプト
+│   └── aggregate.py       # CLI メイン実行スクリプト（一括集計）
 ├── services/
-│   └── aggregator.py      # 集計コアロジック
+│   └── aggregator.py      # 集計コアロジック（CLI/Web 共用）
+├── app/
+│   └── main.py            # Web UI (FastAPI) ← ポータル統合用
+├── templates/
+│   ├── index.html         # Web UI トップページ
+│   └── result.html        # Web UI 集計結果
 ├── .claude/skills/
 │   └── aggregate-enrollment/
 │       └── SKILL.md       # Claude Code Skill定義
@@ -36,11 +42,14 @@ Course-Stats-Analyzer/
 
 ## Run
 ```bash
-# CLIで直接実行
+# CLI: 一括集計（listsフォルダ内の全ファイル）
 python scripts/aggregate.py
 
-# または Claude Code Skill として
+# Claude Code Skill
 /aggregate-enrollment
+
+# Web UI: ポータル統合時（単月アップロード・ダウンロード）
+BEHIND_PORTAL=true uv run python -m uvicorn app.main:app --port 8004
 ```
 
 ---

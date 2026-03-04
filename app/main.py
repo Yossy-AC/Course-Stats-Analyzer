@@ -61,6 +61,12 @@ async def upload(request: Request, file: UploadFile = File(...)):
     global _last_pivot
 
     contents = await file.read()
+    MAX_UPLOAD_SIZE = 20 * 1024 * 1024  # 20MB
+    if len(contents) > MAX_UPLOAD_SIZE:
+        return templates.TemplateResponse("result.html", {
+            "request": request,
+            "error": "ファイルサイズが上限（20MB）を超えています",
+        })
     filename = file.filename or ""
 
     target_month = parse_target_month(filename)
