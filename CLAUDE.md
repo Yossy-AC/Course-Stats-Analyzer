@@ -79,8 +79,8 @@ COLUMN_INDICES = {
 - **基準日**: `target_month` の前月末日
   - 例：2025-05 → 2025-04-30
   - 判定式：`add_date <= cutoff AND (cancel_date IS NULL OR cancel_date > cutoff)`
-- **出力形式**: Pivot（固定列8 + 月列11）
-- **固定列順序**: 学年 | 教室 | 講座名 | マスター/コア | 担当 | 在籍校 | 学科 | 性別
+- **出力形式**: Pivot（固定列5 + 月列11）
+- **固定列順序**: 学年 | 教室 | 講座名 | マスター/コア | 担当
 - **月列順序**: 4月～3月（会計年度順、実装値は `MONTH_ORDER` 参照）
 - **出力場所**:
   - CSV: `outputs/results/{YYYY-MM}.csv`（1ファイル/月）
@@ -91,16 +91,16 @@ COLUMN_INDICES = {
 ## Core Functions (services/aggregator.py)
 
 ### `parse_target_month(filename: str) -> pd.Period | None`
-ファイル名から対象月を抽出。**2025年度専用の年号変換ロジックを含む。**
+ファイル名から対象月を抽出。**任意年度対応の年号変換ロジック。**
 
 ```python
 # 例
 parse_target_month("file_2504.xlsx")  # → 2025-04（Period）
 parse_target_month("file_2501.xlsx")  # → 2026-01（Period）
-parse_target_month("file_2502.xlsx")  # → 2026-02（Period）
+parse_target_month("file_2602.xlsx")  # → 2027-02（Period）
 ```
 
-**重要**: 異なる会計年度対応時は本関数を修正すること。
+ロジック: `year = fiscal_year if month >= 4 else fiscal_year + 1` で、会計年度(4月開始)から暦年に変換。
 
 ### `load_excel(file: bytes | Path) -> pd.DataFrame`
 Excel ファイルを読み込み。Row 4（header=3）をヘッダーとして使用。
@@ -108,9 +108,9 @@ Excel ファイルを読み込み。Row 4（header=3）をヘッダーとして�
 ### `aggregate(df: pd.DataFrame, target_month: pd.Period | None = None) -> pd.DataFrame`
 対象月1ヶ月分の受講人数を集計。Pivot形式で返す。
 
-- グループ化軸（8次元）: 学年, 教室, 講座名, マスター/コア, 担当, 在籍校, 学科, 性別
+- グループ化軸（5次元）: 学年, 教室, 講座名, マスター/コア, 担当
 - 返り値: `KEY_COLS + [月名]` の DataFrame
-- `_resolve_course_name()` で アドバンス/ハイレベル講座を別講座扱い
+- 講座名解決: `str.contains()` + `where()` で【マスター】【コア】をサフィックスとして追加
 
 ### `save_monthly_result(df: pd.DataFrame, target_month: pd.Period, results_dir: Path = RESULTS_DIR) -> None`
 集計結果を CSV で保存。同月を再アップロードすると上書きされる。
@@ -124,43 +124,48 @@ DataFrame を Excel bytes に変換。シート名「月次受講人数」で出
 
 ---
 
-## Process Flow (Upload → Download)
+## Process Flow (CLI実行フロー)
 
-1. **File Upload** (`/upload` POST)
-   - ユーザーが HTMX フォームで Excel を送信
-   - `load_excel()` で bytes から DataFrame を読み込み
+`python scripts/aggregate.py` または `/aggregate-enrollment` スキル実行時：
 
-2. **Month Extraction**
-   - `parse_target_month()` がファイル名から _YYMM を抽出
-   - 2025年度の年号変換を実施
+1. **File Discovery** (`lists/` ディレクトリ走査)
+   - glob で `*.xlsx` をリストアップ
+   - `parse_target_month()` で各ファイルから _YYMM を抽出
 
-3. **Aggregation**
-   - `aggregate(df, target_month)` が月別人数を集計
-   - グループ化軸は 8次元（KEY_COLS）
+2. **Clean Results Directory**
+   - `outputs/results/` 配下の既存 CSV を全削除（再実行時のクリーンアップ）
 
-4. **CSV Storage**
-   - `save_monthly_result()` が `outputs/results/{YYYY-MM}.csv` に保存
+3. **Per-File Processing**（各ファイルループ）
+   - `load_excel()` で DataFrame に読み込み
+   - `aggregate(df, target_month)` で月別人数を集計
+   - `save_monthly_result()` で `outputs/results/{YYYY-MM}.csv` に保存
 
-5. **Pivot Generation**
-   - `build_pivot()` が全月 CSV をマージ
-   - グローバル変数 `_last_result` に格納
+4. **Pivot Generation & Output**
+   - `build_pivot()` が全月 CSV をマージして Pivot DataFrame を生成
+   - `to_excel_bytes()` で `outputs/monthly_stats.xlsx` に出力
 
-6. **HTML Result Display**
-   - `result.html` が Pivot テーブルを表示
-
-7. **File Download** (`/download` GET)
-   - `to_excel_bytes()` が Pivot を Excel に変換
-   - `monthly_stats.xlsx` をダウンロード提供
+5. **Console Report**
+   - 月別統計をコンソール出力
+   - 処理完了を通知
 
 ---
 
-## Known Constraints (今後の改善時に留意)
+## Testing
 
-- **Single User Assumption**: `_last_result` をグローバル変数で保持
-  - 複数ユーザー同時アクセス対応時は Session/Cache 機構を実装
+テストを実行する場合：
 
-- **No Data Persistence**: アプリ再起動で `_last_result` は消失
-  - 恒続的なキャッシュが必要な場合は Redis/FastAPI Cache を検討
+```bash
+# テスト実行（pytest 必要）
+uv run pytest tests/
+
+# テストカバレッジ
+uv run pytest tests/ --cov=services
+```
+
+テストスイート (`tests/test_aggregator.py`) は以下を検証：
+- `parse_target_month()`: ファイル名パース、年度変換、エッジケース
+- `aggregate()`: アクティブ行フィルタ、学年フィルタ、担当フィルタ、講座名解決
+- `build_pivot()`: 月のマージ、月順序の保持
 
 ---
 
