@@ -1,7 +1,5 @@
 {% if error %}
-<div style="background:#fef2f2; border:1px solid #fecaca; border-radius:6px; padding:0.75rem 1rem; color:#dc2626; font-size:0.875rem; margin-top:0;">
-    {{ error }}
-</div>
+<div class="portal-error">{{ error }}</div>
 {% else %}
 <div class="card" style="margin-top:0;">
     <h2>集計完了 — {{ month }}</h2>
@@ -18,7 +16,7 @@
     </div>
     {% endif %}
     <div class="btn-row">
-        <a href="download" class="btn btn-download">Excel ダウンロード</a>
+        <a href="download" class="portal-btn portal-btn-success">Excel ダウンロード</a>
     </div>
 </div>
 {% endif %}

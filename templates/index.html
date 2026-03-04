@@ -4,120 +4,106 @@
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>月次受講人数集計</title>
+    <script>
+    (function(){var t=localStorage.getItem("portal-theme");if(!t)t=window.matchMedia&&window.matchMedia("(prefers-color-scheme:dark)").matches?"dark":"light";document.documentElement.setAttribute("data-theme",t)})();
+    </script>
+    <link rel="stylesheet" href="/portal-assets/portal.css">
     <script src="https://unpkg.com/htmx.org@2.0.4/dist/htmx.min.js"></script>
     <style>
-        * { box-sizing: border-box; margin: 0; padding: 0; }
-        body {
-            font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif;
-            background: #f5f5f5;
-            color: #333;
-            padding: 2rem 1rem;
-        }
-        .container { max-width: 800px; margin: 0 auto; }
-        h1 { font-size: 1.4rem; font-weight: 600; margin-bottom: 0.25rem; }
-        .subtitle { color: #666; font-size: 0.85rem; margin-bottom: 2rem; }
+        .page-container { max-width: 800px; margin: 0 auto; padding: 2rem 1.5rem; }
+        .page-title { font-size: 1.5rem; font-weight: 700; letter-spacing: -0.02em; margin-bottom: 0.25rem; }
+        .page-subtitle { color: var(--p-text-secondary); font-size: 0.9rem; margin-bottom: 2rem; }
         .card {
-            background: white;
-            border-radius: 8px;
-            box-shadow: 0 2px 8px rgba(0,0,0,0.08);
+            background: var(--p-surface);
+            border: 0.5px solid var(--p-border-light);
+            border-radius: var(--p-radius);
             padding: 1.75rem;
             margin-bottom: 1.25rem;
         }
         .card h2 { font-size: 1rem; font-weight: 600; margin-bottom: 1rem; }
         .upload-area {
-            border: 2px dashed #ddd;
-            border-radius: 6px;
+            border: 2px dashed var(--p-border);
+            border-radius: var(--p-radius-sm);
             padding: 1.5rem;
             text-align: center;
             cursor: pointer;
-            transition: border-color 0.15s, background 0.15s;
+            transition: all var(--p-transition);
         }
-        .upload-area:hover { border-color: #2563eb; background: #eff6ff; }
+        .upload-area:hover { border-color: var(--p-accent); background: rgba(0,113,227,0.04); }
+        [data-theme="dark"] .upload-area:hover { background: rgba(41,151,255,0.06); }
         .upload-area input[type="file"] { display: none; }
-        .upload-area label {
-            display: block;
-            cursor: pointer;
-            color: #666;
-            font-size: 0.9rem;
-        }
-        .upload-area .filename {
-            margin-top: 0.5rem;
-            font-size: 0.85rem;
-            color: #2563eb;
-            font-weight: 500;
-        }
-        .btn {
-            display: inline-block;
-            padding: 0.55rem 1.25rem;
-            border: none;
-            border-radius: 6px;
-            font-size: 0.9rem;
-            font-weight: 500;
-            cursor: pointer;
-            transition: background 0.15s;
-        }
-        .btn-primary { background: #2563eb; color: white; }
-        .btn-primary:hover { background: #1d4ed8; }
-        .btn-primary:disabled { background: #93c5fd; cursor: not-allowed; }
-        .btn-download { background: #059669; color: white; }
-        .btn-download:hover { background: #047857; }
+        .upload-area label { display: block; cursor: pointer; color: var(--p-text-secondary); font-size: 0.9rem; }
+        .upload-area .filename { margin-top: 0.5rem; font-size: 0.85rem; color: var(--p-accent); font-weight: 500; }
         .btn-row { margin-top: 1rem; display: flex; gap: 0.75rem; align-items: center; }
         .status-bar {
             display: flex; gap: 1.5rem; flex-wrap: wrap;
             padding: 0.75rem 1rem;
-            background: #f0fdf4;
-            border: 1px solid #bbf7d0;
-            border-radius: 6px;
+            background: rgba(52,199,89,0.08);
+            border: 1px solid rgba(52,199,89,0.2);
+            border-radius: var(--p-radius-sm);
             font-size: 0.85rem;
-            color: #166534;
+            color: var(--p-success);
         }
         .status-bar span { font-weight: 500; }
-        .status-bar .label { color: #15803d; font-weight: 400; }
-        .months-list {
-            display: flex; flex-wrap: wrap; gap: 0.4rem; margin-top: 0.75rem;
-        }
+        .status-bar .label { font-weight: 400; opacity: 0.8; }
+        .months-list { display: flex; flex-wrap: wrap; gap: 0.4rem; margin-top: 0.75rem; }
         .month-tag {
-            background: #dbeafe; color: #1d4ed8;
+            background: rgba(0,113,227,0.08);
+            color: var(--p-accent);
             padding: 0.2rem 0.6rem;
             border-radius: 4px;
             font-size: 0.78rem;
             font-weight: 500;
         }
         #result { margin-top: 0; }
-        .htmx-indicator { display: none; color: #666; font-size: 0.85rem; }
-        .htmx-request .htmx-indicator { display: inline; }
-        a.back { font-size: 0.85rem; color: #666; text-decoration: none; }
-        a.back:hover { color: #333; }
     </style>
 </head>
 <body>
-    <div class="container">
-        <a class="back" href="/auth/logout">← ログアウト</a>
-        <h1 style="margin-top: 0.75rem;">月次受講人数集計</h1>
-        <p class="subtitle">月別の受講リスト Excel をアップロードし、集計 Pivot を生成・ダウンロードします</p>
+    <!-- Navigation -->
+    <nav class="portal-nav">
+        <div class="portal-nav-inner">
+            <a href="/" class="portal-nav-brand">Yossy Portal</a>
+            <ul class="portal-nav-links">
+                <li><a href="/">ホーム</a></li>
+                <li><a href="/staff/admin">成績管理</a></li>
+                <li><a href="/staff/exam/">入試分析</a></li>
+                <li><a href="/staff/goukaku/">合格実績</a></li>
+                <li><a href="/auth/logout" class="portal-nav-logout">ログアウト</a></li>
+            </ul>
+            <button class="portal-theme-toggle" aria-label="テーマ切替">&#9790;</button>
+            <button class="portal-hamburger" aria-label="メニュー" aria-expanded="false">
+                <svg viewBox="0 0 20 20" fill="currentColor"><path fill-rule="evenodd" d="M3 5h14a1 1 0 010 2H3a1 1 0 010-2zm0 4h14a1 1 0 010 2H3a1 1 0 010-2zm0 4h14a1 1 0 010 2H3a1 1 0 010-2z"/></svg>
+            </button>
+        </div>
+    </nav>
+    <div class="portal-mobile-menu">
+        <a href="/">ホーム</a>
+        <a href="/staff/admin">成績管理</a>
+        <a href="/staff/exam/">入試分析</a>
+        <a href="/staff/goukaku/">合格実績</a>
+        <a href="/auth/logout" class="portal-nav-logout">ログアウト</a>
+    </div>
+
+    <div class="page-container">
+        <h1 class="page-title">月次受講人数集計</h1>
+        <p class="page-subtitle">月別の受講リスト Excel をアップロードし、集計 Pivot を生成・ダウンロードします</p>
 
         <!-- アップロードフォーム -->
         <div class="card">
             <h2>ファイルアップロード</h2>
-            <form
-                hx-post="upload"
-                hx-target="#result"
-                hx-swap="innerHTML"
-                hx-encoding="multipart/form-data"
-                id="upload-form"
-            >
+            <form hx-post="upload" hx-target="#result" hx-swap="innerHTML"
+                  hx-encoding="multipart/form-data" id="upload-form">
                 <div class="upload-area" onclick="document.getElementById('file-input').click()">
-                    <input type="file" id="file-input" name="file" accept=".xlsx,.xls"
-                           onchange="updateFilename(this)">
+                    <input type="file" id="file-input" name="file" accept=".xlsx,.xls" onchange="updateFilename(this)">
                     <label for="file-input">
                         クリックしてファイルを選択<br>
-                        <small style="color: #999;">ファイル名例: 〔定例報告〕2025AC受講者ﾘｽﾄ_2504.xlsx</small>
+                        <small style="color:var(--p-text-tertiary);">ファイル名例: 〔定例報告〕2025AC受講者ﾘｽﾄ_2504.xlsx</small>
                     </label>
                     <div class="filename" id="filename-display" style="display:none;"></div>
                 </div>
                 <div class="btn-row">
-                    <button type="submit" class="btn btn-primary" id="submit-btn" disabled>集計する</button>
-                    <span class="htmx-indicator">処理中...</span>
+                    <button type="submit" class="portal-btn portal-btn-primary" id="submit-btn" disabled>集計する</button>
+                    <span class="htmx-indicator"><span class="portal-spinner"></span> 処理中...</span>
                 </div>
             </form>
         </div>
@@ -138,7 +124,7 @@
             </div>
             {% endif %}
             <div class="btn-row">
-                <a href="download" class="btn btn-download">Excel ダウンロード</a>
+                <a href="download" class="portal-btn portal-btn-success">Excel ダウンロード</a>
             </div>
         </div>
         {% endif %}
@@ -147,6 +133,9 @@
         <div id="result"></div>
     </div>
 
+    <footer class="portal-footer">Yossy Portal &copy; 2026</footer>
+
+    <script src="/portal-assets/portal-nav.js"></script>
     <script>
         function updateFilename(input) {
             const display = document.getElementById('filename-display');
@@ -160,8 +149,6 @@
                 btn.disabled = true;
             }
         }
-
-        // アップロード完了後にフォームをリセット
         document.getElementById('upload-form').addEventListener('htmx:afterRequest', function() {
             document.getElementById('file-input').value = '';
             document.getElementById('filename-display').style.display = 'none';
