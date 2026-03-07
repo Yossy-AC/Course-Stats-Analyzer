@@ -39,8 +39,8 @@
         .status-bar {
             display: flex; gap: 1.5rem; flex-wrap: wrap;
             padding: 0.75rem 1rem;
-            background: rgba(52,199,89,0.08);
-            border: 1px solid rgba(52,199,89,0.2);
+            background: color-mix(in srgb, var(--p-success) 8%, transparent);
+            border: 1px solid color-mix(in srgb, var(--p-success) 20%, transparent);
             border-radius: var(--p-radius-sm);
             font-size: 0.85rem;
             color: var(--p-success);
@@ -49,7 +49,7 @@
         .status-bar .label { font-weight: 400; opacity: 0.8; }
         .months-list { display: flex; flex-wrap: wrap; gap: 0.4rem; margin-top: 0.75rem; }
         .month-tag {
-            background: rgba(0,113,227,0.08);
+            background: color-mix(in srgb, var(--p-accent) 8%, transparent);
             color: var(--p-accent);
             padding: 0.2rem 0.6rem;
             border-radius: 4px;

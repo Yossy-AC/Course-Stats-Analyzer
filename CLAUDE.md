@@ -189,3 +189,7 @@ uv run pytest tests/ --cov=services
   - 会計年度ロジック: `year = fiscal_year if month >= 4 else fiscal_year + 1`
   - 2026年度以降のファイル対応可能
 - **分析機能**: 削除（要件変更により月次集計のみに特化）
+
+## 最近の変更（2026年3月）
+- index.html: ステータスバー・月タグの色をCSS変数（`color-mix()`）に統一
+- main.py: エラーメッセージをユーザーフレンドリーに改善

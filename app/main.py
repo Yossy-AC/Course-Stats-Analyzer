@@ -32,9 +32,6 @@ templates = Jinja2Templates(directory=str(PROJECT_ROOT / "templates"))
 
 app = FastAPI(title="月次受講人数集計")
 
-# グローバルキャッシュ（シングルユーザー前提）
-_last_pivot: object = None
-
 
 @app.middleware("http")
 async def portal_auth(request: Request, call_next):
@@ -58,8 +55,6 @@ async def index(request: Request):
 
 @app.post("/upload", response_class=HTMLResponse)
 async def upload(request: Request, file: UploadFile = File(...)):
-    global _last_pivot
-
     contents = await file.read()
     MAX_UPLOAD_SIZE = 20 * 1024 * 1024  # 20MB
     if len(contents) > MAX_UPLOAD_SIZE:
@@ -76,13 +71,16 @@ async def upload(request: Request, file: UploadFile = File(...)):
             "error": f"ファイル名からターゲット月を判定できません: {filename}（例: *_2504.xlsx）",
         })
 
+    import logging
+    _logger = logging.getLogger(__name__)
     try:
         df = load_excel(contents)
         result = aggregate(df, target_month)
     except Exception as e:
+        _logger.error("集計エラー: %s", e, exc_info=True)
         return templates.TemplateResponse("result.html", {
             "request": request,
-            "error": f"集計エラー: {e}",
+            "error": "集計処理に失敗しました。Excelファイルの形式を確認してください",
         })
 
     if result is None or result.empty:
@@ -94,7 +92,6 @@ async def upload(request: Request, file: UploadFile = File(...)):
     save_monthly_result(result, target_month, RESULTS_DIR)
 
     pivot = build_pivot(RESULTS_DIR)
-    _last_pivot = pivot
 
     months = [c for c in pivot.columns if c not in ["学年", "教室", "講座名", "M/C", "担当"]]
     return templates.TemplateResponse("result.html", {
@@ -108,12 +105,10 @@ async def upload(request: Request, file: UploadFile = File(...)):
 
 @app.get("/download")
 async def download():
-    global _last_pivot
-    if _last_pivot is None:
-        _last_pivot = build_pivot(RESULTS_DIR)
-    if _last_pivot is None or (hasattr(_last_pivot, "empty") and _last_pivot.empty):
+    pivot = build_pivot(RESULTS_DIR)
+    if pivot is None or pivot.empty:
         return Response("データがありません", status_code=404)
-    excel_bytes = to_excel_bytes(_last_pivot)
+    excel_bytes = to_excel_bytes(pivot)
     return Response(
         content=excel_bytes,
         media_type="application/vnd.openxmlformats-officedocument.spreadsheetml.sheet",
